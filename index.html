@@ -437,7 +437,7 @@ footer small{color:var(--muted);font-size:.85rem}
       <a href="#testimonials" data-go="testimonials">Testimonials</a>
     </nav>
     <div class="head-right">
-      <a class="btn btn-brand" href="#contact" data-go="home">Book a call</a>
+      <a class="btn btn-brand" href="https://calendly.com/jerome-7erk/30min" target="_blank" rel="noopener">Book a call</a>
       <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Open menu"><span></span></button>
     </div>
   </div>
@@ -922,17 +922,46 @@ var TESTIMONIALS = [
   });
   if(location.hash==='#testimonials'){ views.home.hidden=true; views.testimonials.hidden=false; current='testimonials'; markNav(); }
 
-  /* Form */
+    /* Form */
   var form=document.getElementById('lead'), thanks=document.getElementById('thanks'), err=document.getElementById('f-err');
+  var btn=form.querySelector('button[type="submit"]'), btnLabel=btn.innerHTML;
+  function val(id){ return document.getElementById(id).value.trim(); }
   form.addEventListener('submit',function(e){
     e.preventDefault();
     var nameEl=document.getElementById('f-name'), emailEl=document.getElementById('f-email');
     var name=nameEl.value.trim(), email=emailEl.value.trim();
-    if(!name||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ err.hidden=false; (name?emailEl:nameEl).focus(); return; }
+    if(!name||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+      err.textContent='Please add your name and a valid email so we can reach you.';
+      err.hidden=false; (name?emailEl:nameEl).focus(); return;
+    }
     err.hidden=true;
-    document.getElementById('thanks-h').textContent='Thanks, '+name.split(/\s+/)[0]+'.';
-    document.getElementById('thanks-p').textContent="We've got your details and will reach out at "+email+" to schedule your discovery call.";
-    form.hidden=true; thanks.hidden=false; document.getElementById('again').focus();
+    var handoff=[].slice.call(form.querySelectorAll('.chip input:checked')).map(function(c){return c.value;}).join(', ');
+    var data={
+      _subject:'New discovery call request: '+name,
+      _template:'table',
+      _replyto:email,
+      'Name':name,
+      'Email':email,
+      'Company':val('f-company')||'-',
+      'Role':val('f-role'),
+      'Hand off first':handoff||'-',
+      'Support in mind':val('f-support'),
+      'Message':val('f-msg')||'-'
+    };
+    btn.disabled=true; btn.textContent='Sending…';
+    fetch('https://formsubmit.co/ajax/inquiries@activate-labs.com',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify(data)
+    }).then(function(r){ if(!r.ok) throw new Error('Send failed'); return r.json(); })
+    .then(function(){
+      document.getElementById('thanks-h').textContent='Thanks, '+name.split(/\s+/)[0]+'.';
+      document.getElementById('thanks-p').textContent="We've got your details and will reach out at "+email+" to schedule your discovery call.";
+      form.hidden=true; thanks.hidden=false; document.getElementById('again').focus();
+    }).catch(function(){
+      err.textContent='Sorry, something went wrong. Please email us directly at inquiries@activate-labs.com.';
+      err.hidden=false;
+    }).then(function(){ btn.disabled=false; btn.innerHTML=btnLabel; });
   });
   document.getElementById('again').addEventListener('click',function(){
     form.reset(); thanks.hidden=true; form.hidden=false; document.getElementById('f-name').focus();
